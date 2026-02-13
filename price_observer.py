@@ -55,8 +55,6 @@ def GetMyWishListGames():
         app_ids.append(wishlist_games_urls[j].split('/')[4])
     return app_ids
 
-def GetMyWishListGamePrice()
-
 owned_games = GetOwnedGames(api_key, uid)
 games = owned_games['games']
 owned_games_number = len(games)
