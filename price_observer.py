@@ -10,37 +10,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 load_dotenv()
-api_key = os.getenv('api_key')
-uid = os.getenv('uid')
-
-
-def GetOwnedGames(api_key, uid):
-    url = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={}&steamid={}&format=json".format(
-        api_key, uid
-    )
-    r = requests.get(url)
-    if r.status_code != 200: 
-        print(f"Status Code: {r.status_code}")
-        print(f"Response Text: {r.text}")
-        print('所持しているゲームの取得中にエラーが発生しました。')
-        sys.exit()
-    else:    
-        data = json.loads(r.text)
-        return data["response"]
-    
-def GetPlayerSummaries(api_key, uid):
-    url = "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={}&steamids={}&format=json".format(
-        api_key, uid
-    )
-    r = requests.get(url)
-    if r.status_code != 200: 
-        print(f"Status Code: {r.status_code}")
-        print(f"Response Text: {r.text}")
-        print('player summariesの取得中にエラーが発生しました。')
-        sys.exit()
-    else:    
-        data = json.loads(r.text)
-        return data["response"]
+api_key = os.getenv('steam_api_key')
+uid = os.getenv('steam_user_id')
+itad_key = os.getenv('ITAD_api_key')
 
 class WishListGameInfo:
 
@@ -62,7 +34,7 @@ class WishListGameInfo:
         return self.app_ids
 
     def get_app_details(self):
-        wishlist_apps_detail = []
+        self.wishlist_apps_detail = []
         app_detail_url = "https://store.steampowered.com/api/appdetails"
         for i in range(len(self.app_ids)):
             r = requests.get(app_detail_url, params={"appids": self.app_ids[i], "cc": "jp", "l": "japanese"}, timeout=30).json()
@@ -85,21 +57,10 @@ class WishListGameInfo:
                     app_detail.update({"price_display": app_price.get("final_formatted")})
             else:
                 app_detail.update({"price_final": "￥0"})
-            wishlist_apps_detail.append(app_detail)
+            self.wishlist_apps_detail.append(app_detail)
             time.sleep(1)
-        return wishlist_apps_detail
-        
-'''
-owned_games = GetOwnedGames(api_key, uid)
-games = owned_games['games']
-owned_games_number = len(games)
-player_summaries = GetPlayerSummaries(api_key, uid)
-
-print(owned_games_number)
-print(player_summaries['players'][0]['personaname']) 
-'''
-
+        return self.wishlist_apps_detail
+    
 wishlist = WishListGameInfo()
 wishlist.get_wish_list_app_ids()
-wishlist_apps_detail = wishlist.get_app_details()
-print(wishlist_apps_detail)
+wishlist.get_app_details()
