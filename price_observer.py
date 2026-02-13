@@ -1,14 +1,18 @@
-import json
-import requests
+import os
 import sys
-import config
+import json
+import time
+import requests
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-api_key = config.api_key
-uid = config.uid
+load_dotenv()
+api_key = os.getenv('api_key')
+uid = os.getenv('uid')
+
 
 def GetOwnedGames(api_key, uid):
     url = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={}&steamid={}&format=json".format(
@@ -37,33 +41,65 @@ def GetPlayerSummaries(api_key, uid):
     else:    
         data = json.loads(r.text)
         return data["response"]
-    
-def GetMyWishListGames():
-    driver = webdriver.Chrome()
-    wishlist_url = "https://store.steampowered.com/wishlist/profiles/76561199064613136/"
-    driver.get(wishlist_url)
-    wait = WebDriverWait(driver, 30)
-    wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'pOyXxbQoV38-')))
 
-    wishlist_games_elements = driver.find_elements(By.CLASS_NAME, 'pOyXxbQoV38-')
-    wishlist_games_urls= []
-    for i in wishlist_games_elements:
-        wishlist_games_urls.append(i.get_attribute('href'))
-    driver.quit()
-    app_ids = []
-    for j in range(len(wishlist_games_urls)):
-        app_ids.append(wishlist_games_urls[j].split('/')[4])
-    return app_ids
+class WishListGameInfo:
 
-def GetMyWishListGamePrice()
+    def get_wish_list_app_ids(self):
+        driver = webdriver.Chrome()
+        wishlist_url = "https://store.steampowered.com/wishlist/profiles/76561199064613136/"
+        driver.get(wishlist_url)
+        wait = WebDriverWait(driver, 30)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'pOyXxbQoV38-')))
 
+        wishlist_games_elements = driver.find_elements(By.CLASS_NAME, 'pOyXxbQoV38-')
+        self.wishlist_games_urls = []
+        for i in wishlist_games_elements:
+            self.wishlist_games_urls.append(i.get_attribute('href'))
+        driver.quit()
+        self.app_ids = []
+        for j in range(len(self.wishlist_games_urls)):
+            self.app_ids.append(self.wishlist_games_urls[j].split('/')[4])
+        return self.app_ids
+
+    def get_app_details(self):
+        wishlist_apps_detail = []
+        app_detail_url = "https://store.steampowered.com/api/appdetails"
+        for i in range(len(self.app_ids)):
+            r = requests.get(app_detail_url, params={"appids": self.app_ids[i], "cc": "jp", "l": "japanese"}, timeout=30).json()
+            node = r.get(str(self.app_ids[i]), {})
+            if not node["success"]:
+                return None
+            app_data = node["data"].copy()
+            app_price = app_data.get("price_overview")
+            app_detail = {}
+            app_detail.update({
+                "name": app_data.get("name"),
+                "header_image": app_data.get("header_image"),
+            })
+            if not app_data["is_free"]:
+                if app_price["discount_percent"] != 0:
+                    app_detail.update({"price_initial": app_price.get("initial_formatted"),
+                                "price_display": app_price.get("final_formatted"),
+                                })
+                else:
+                    app_detail.update({"price_display": app_price.get("final_formatted")})
+            else:
+                app_detail.update({"price_final": "￥0"})
+            wishlist_apps_detail.append(app_detail)
+            time.sleep(1)
+        return wishlist_apps_detail
+        
+'''
 owned_games = GetOwnedGames(api_key, uid)
 games = owned_games['games']
 owned_games_number = len(games)
 player_summaries = GetPlayerSummaries(api_key, uid)
 
-#print(owned_games_number)
-#print(player_summaries['players'][0]['personaname']) 
+print(owned_games_number)
+print(player_summaries['players'][0]['personaname']) 
+'''
 
-app_ids = GetMyWishListGames()
-print(app_ids)
+wishlist = WishListGameInfo()
+wishlist.get_wish_list_app_ids()
+wishlist_apps_detail = wishlist.get_app_details()
+print(wishlist_apps_detail)
